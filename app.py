@@ -25,11 +25,8 @@ class SubscriptionUpdate(BaseModel):
     currency: Optional[str] = None
     
 def get_usd_to_aud_rate():
-    response = requests.get(
-        "https://api.exchangerate.host/latest", 
-        params = {"base": "USD", "symbols": "AUD"},
-        timeout = 5
-    )
+    response = requests.get("https://open.er-api.com/v6/latest/USD", timeout = 5)
+    response.raise_for_status()
     data = response.json()
     return data["rates"]["AUD"]
 
@@ -57,9 +54,6 @@ def create_subscription(new_sub: SubscriptionCreate, db: Session = Depends(get_d
     
     return subscription
 
-
-#Filter endpoint 
-
 @app.get("/subscriptions/due")
 def subscriptions_due(db: Session = Depends(get_db)):
     today_day = date.today().day
@@ -69,6 +63,30 @@ def subscriptions_due(db: Session = Depends(get_db)):
         .filter(Subscription.billing_day > today_day)
         .all()
     )
+    
+@app.get("/subscriptions/with-aud")
+def get_subscriptions_with_aud(db: Session = Depends(get_db)):
+    subscriptions = db.query(Subscription).all()
+    usd_to_aud_rate = get_usd_to_aud_rate()
+    
+    result = []
+    
+    for sub in subscriptions:
+        if sub.currency == "USD":
+            amount_aud = sub.amount * usd_to_aud_rate
+        else:
+            amount_aud = sub.amount
+
+        result.append({
+            "id": sub.id,
+            "name": sub.name,
+            "billing_day": sub.billing_day,
+            "currency": sub.currency,
+            "amount_aud": round(amount_aud, 2)
+        })
+    
+    return result
+    
 @app.delete("/subscriptions/{subscription_id}")
 def delete_subscription(subscription_id: int, db: Session = Depends(get_db)):
     subscription = db.query(Subscription).filter(
