@@ -6,5 +6,6 @@ class Subscription(Base):
     id = Column(Integer, primary_key = True, index = True)
     name = Column(String, index = True)
     amount = Column(Float)
-    cycle = Column(String)
+    billing_day = Column(Integer)
+    
     

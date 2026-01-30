@@ -4,20 +4,16 @@ from sqlalchemy.orm import Session
 from fastapi import Depends 
 from db import get_db 
 from models import Subscription 
+from datetime import date 
 
 app = FastAPI()
 
-#Temp 
-# subscriptions = [
-#     {"id": 1, "name": "YouTube", "amount": 22.99, "cycle": "monthly"},
-#     {"id": 2, "name": "Google AI", "amount": 32.99, "cycle": "monthly"},
-# ]
 
 #What should a new subscription have 
 class SubscriptionCreate(BaseModel):
     name: str
     amount: float
-    cycle: str 
+    billing_day: int 
 
 @app.get("/")
 def home():
@@ -33,7 +29,7 @@ def create_subscription(new_sub: SubscriptionCreate, db: Session = Depends(get_d
     subscription = Subscription(
         name = new_sub.name,
         amount = new_sub.amount,
-        cycle = new_sub.cycle
+        billing_day = new_sub.billing_day
     )
     
     db.add(subscription)
@@ -41,26 +37,29 @@ def create_subscription(new_sub: SubscriptionCreate, db: Session = Depends(get_d
     db.refresh(subscription)
     
     return subscription
-    # new_id = subscriptions[-1]["id"] + 1 if subscriptions else 1
-    
-    # sub_dict = {
-    #     "id": new_id, 
-    #     "name": new_sub.name,
-    #     "amount": new_sub.amount,
-    #     "cycle": new_sub.cycle,
-    # }
-    
-    # subscriptions.append(sub_dict)
-    # return sub_dict
+
 
 #Filter endpoint 
-@app.get("/subscriptions/filter")
-def filter_subscriptions(cycle: str, db:Session = Depends(get_db)):
-    return db.query(Subscription).filter(Subscription.cycle == cycle).all()
-    # results = []
+
+@app.get("/subscriptions/due")
+def subscriptions_due(db: Session = Depends(get_db)):
+    today_day = date.today().day
     
-    # for sub in subscriptions:
-    #     if sub["cycle"] == cycle:
-    #         results.append(sub)
-            
-    # return results
+    return(
+        db.query(Subscription)
+        .filter(Subscription.billing_day > today_day)
+        .all()
+    )
+@app.delete("/subscriptions/{subscription_id}")
+def delete_subscription(subscription_id: int, db: Session = Depends(get_db)):
+    subscription = db.query(Subscription).filter(
+        Subscription.id == subscription_id
+    ).first()
+    
+    if subscription is None:
+        return {"error": "Subscription not found"}
+    
+    db.delete(subscription)
+    db.commit()
+    
+    return {"message": f"Subscription {subscription_id} deleted successfully"}

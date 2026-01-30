@@ -24,5 +24,5 @@ def get_db():
     try:
         yield db
     finally:
-        db.clase()
+        db.close()
         
