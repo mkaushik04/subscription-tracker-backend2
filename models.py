@@ -6,6 +6,7 @@ class Subscription(Base):
     id = Column(Integer, primary_key = True, index = True)
     name = Column(String, index = True)
     amount = Column(Float)
+    currency = Column(String, default = "AUD")
     billing_day = Column(Integer)
     
     
